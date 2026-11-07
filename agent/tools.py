@@ -7,8 +7,10 @@ import csv
 import json
 import os
 import statistics
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
+
+from opentelemetry import trace
 
 SERIES_DIR = Path(__file__).parent.parent / "data" / "series"
 TICKETS = Path(__file__).parent.parent / "tickets.jsonl"
@@ -20,8 +22,8 @@ def _load(metric: str) -> list[tuple[datetime, float]]:
         return [(datetime.strptime(r["timestamp"][:16], FMT), float(r["value"])) for r in csv.DictReader(f)]
 
 
-def _window(metric: str, start: str, end: str):
-    """Return (points, start, end) actually used for the requested window."""
+def _window(metric: str, start: str, end: str) -> list[float]:
+    """Return the data points for the requested window."""
     rows = _load(metric)
     t0, t1 = datetime.strptime(start, FMT), datetime.strptime(end, FMT)
     points = [v for t, v in rows if t0 <= t <= t1]
@@ -31,19 +33,22 @@ def _window(metric: str, start: str, end: str):
             # The fix: say there is no data instead of guessing.
             raise ValueError(f"no data for {metric} between {start} and {end}")
         # THE BUG: a "helpful" fallback that quietly uses the latest data instead.
+        # The caller is never told: the result looks like the window it asked for.
         last = rows[-1][0]
         t1, t0 = last, last - (t1 - t0)
         points = [v for t, v in rows if t0 <= t <= t1]
 
-    return points, t0.strftime(FMT), t1.strftime(FMT)
+    # The tool tells its own span which data it really used. The model never sees this.
+    span = trace.get_current_span()
+    span.set_attribute("tool.data.start", t0.strftime(FMT))
+    span.set_attribute("tool.data.end", t1.strftime(FMT))
+    return points
 
 
 def fetch_metric_window(metric: str, start: str, end: str) -> dict:
-    points, used_start, used_end = _window(metric, start, end)
+    points = _window(metric, start, end)
     return {
         "metric": metric,
-        "start": used_start,
-        "end": used_end,
         "count": len(points),
         "min": round(min(points), 2),
         "max": round(max(points), 2),
@@ -55,12 +60,10 @@ def check_anomaly(metric: str, start: str, end: str) -> dict:
     """Compare the window against the whole series; flag points over 3 standard deviations."""
     baseline = [v for _, v in _load(metric)]
     mean, std = statistics.mean(baseline), statistics.pstdev(baseline)
-    points, used_start, used_end = _window(metric, start, end)
+    points = _window(metric, start, end)
     scores = [abs(v - mean) / std for v in points]
     return {
         "metric": metric,
-        "start": used_start,
-        "end": used_end,
         "anomaly": max(scores) > 3,
         "max_score": round(max(scores), 2),
         "points_over_threshold": sum(s > 3 for s in scores),

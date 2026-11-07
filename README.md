@@ -37,7 +37,7 @@ make run INCIDENT=inc-103 TRACING=on
 
 Open Jaeger at http://localhost:16686 and pick the `triage-agent` service. One run is one tree: the agent run, each step, each model call, each tool call.
 
-Look at the `fetch_metric_window` span. It asked for **25 April**. It returned data from **23–24 April**. The tool had no data for the requested window and quietly fell back to the latest data it had. The model judged the alert on the wrong day.
+Look at the `fetch_metric_window` span. `tool.args.start` says it asked for **25 April**. `tool.data.start` says the data it actually used was from **23–24 April**. The tool had no data for the requested window and quietly fell back to the latest data it had, without telling the agent. The model judged the alert on the wrong day, and only the trace shows it.
 
 ## 3. Same trace, different tool
 

@@ -64,10 +64,10 @@ def tool_span(name: str, arguments: str):
 
 
 def record_tool_result(span, result: dict) -> None:
-    """...and what came back, so a trace shows when the two differ."""
+    """...and what came back. (Tools that read data also record which data, as tool.data.*)"""
     if "error" in result:
         span.set_attribute("error.type", "tool_error")
         span.set_status(trace.Status(trace.StatusCode.ERROR, result["error"]))
-    for key in ("start", "end", "count", "anomaly", "max_score"):
+    for key in ("count", "anomaly", "max_score"):
         if key in result:
             span.set_attribute(f"tool.result.{key}", str(result[key]))
