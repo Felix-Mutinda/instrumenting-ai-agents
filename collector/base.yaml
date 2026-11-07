@@ -1,0 +1,34 @@
+# Everything the agent sends goes through here first.
+# The app does not know or care which backend is behind the Collector.
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # 1. Remove prompt and completion text before it leaves the machine.
+  #    The trace keeps its shape, model name and token counts; the content is dropped.
+  transform/redact:
+    trace_statements:
+      - context: span
+        statements:
+          - delete_matching_keys(attributes, "^(input|output)\\.value$")
+          - delete_matching_keys(attributes, "^llm\\.(input|output)_messages\\..*")
+          - delete_matching_keys(attributes, "^llm\\.invocation_parameters$")
+
+  # 2. Copy library-specific names onto the standard GenAI names, so dashboards
+  #    work whichever instrumentation library produced the span.
+  transform/normalise:
+    trace_statements:
+      - context: span
+        statements:
+          - set(attributes["gen_ai.request.model"], attributes["llm.model_name"]) where attributes["llm.model_name"] != nil
+          - set(attributes["gen_ai.usage.input_tokens"], attributes["llm.token_count.prompt"]) where attributes["llm.token_count.prompt"] != nil
+          - set(attributes["gen_ai.usage.output_tokens"], attributes["llm.token_count.completion"]) where attributes["llm.token_count.completion"] != nil
+          # The library calls the model span "ChatCompletion"; the convention calls it "chat <model>".
+          - set(attributes["gen_ai.operation.name"], "chat") where attributes["openinference.span.kind"] == "LLM"
+          - set(name, Concat(["chat", attributes["gen_ai.request.model"]], " ")) where attributes["openinference.span.kind"] == "LLM"
+
+  batch: {}

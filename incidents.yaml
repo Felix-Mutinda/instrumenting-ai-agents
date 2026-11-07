@@ -1,0 +1,23 @@
+# Three alerts for the triage agent. Windows are in the series' own time (2014, UTC).
+#
+# inc-101  a real CPU spike           -> should open a ticket
+# inc-102  a quiet database           -> should close as a false alarm
+# inc-103  an alert after the data ends -> the case the article diagnoses
+
+- id: inc-101
+  metric: ec2_cpu
+  start: "2014-02-24 10:00"
+  end: "2014-02-25 03:00"
+  alert: "EC2 CPU utilisation above threshold"
+
+- id: inc-102
+  metric: rds_cpu
+  start: "2014-02-20 00:00"
+  end: "2014-02-20 12:00"
+  alert: "RDS CPU utilisation above threshold"
+
+- id: inc-103
+  metric: ec2_network_in
+  start: "2014-04-25 00:00"
+  end: "2014-04-25 12:00"
+  alert: "EC2 network-in traffic spike"

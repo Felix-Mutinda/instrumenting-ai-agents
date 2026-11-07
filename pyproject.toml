@@ -1,0 +1,17 @@
+[project]
+name = "instrumenting-ai-agents"
+version = "0.1.0"
+description = "Part 1 of the AI System Design series: tracing an AI agent with OpenTelemetry"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = [
+    "openai>=1.50,<4",
+    "python-dotenv>=1.0",
+    "pyyaml>=6.0",
+    "opentelemetry-sdk~=1.45",
+    "opentelemetry-exporter-otlp-proto-http~=1.45",
+    "openinference-instrumentation-openai~=0.1.69",
+]
+
+[tool.uv]
+package = false

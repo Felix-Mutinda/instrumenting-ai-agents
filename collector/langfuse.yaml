@@ -1,0 +1,15 @@
+# Langfuse accepts OTLP directly. Auth is Basic base64(public_key:secret_key),
+# built by the Makefile into LANGFUSE_AUTH.
+
+exporters:
+  otlphttp/langfuse:
+    endpoint: ${env:LANGFUSE_OTLP_ENDPOINT}
+    headers:
+      Authorization: Basic ${env:LANGFUSE_AUTH}
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [transform/redact, transform/normalise, batch]
+      exporters: [otlphttp/langfuse]

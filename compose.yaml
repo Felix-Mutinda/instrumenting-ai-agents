@@ -1,0 +1,17 @@
+services:
+  collector:
+    image: otel/opentelemetry-collector-contrib:0.115.1
+    command: ["--config=/etc/otel/base.yaml", "--config=/etc/otel/${BACKEND:-jaeger}.yaml"]
+    volumes:
+      - ./collector:/etc/otel:ro
+    environment:
+      LANGFUSE_OTLP_ENDPOINT: ${LANGFUSE_OTLP_ENDPOINT:-}
+      LANGFUSE_AUTH: ${LANGFUSE_AUTH:-}
+    ports:
+      - "4318:4318"
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    profiles: ["jaeger"]
+    ports:
+      - "16686:16686"   # UI: http://localhost:16686
